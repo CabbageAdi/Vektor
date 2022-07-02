@@ -1,5 +1,5 @@
-use raylib::prelude::RenderTexture2D;
-use rfd::AsyncFileDialog;
+use raylib::prelude::*;
+use rfd::FileDialog;
 use crate::CanvasData;
 use crate::ui::Button;
 
@@ -18,7 +18,14 @@ impl Button for ExportButton {
     }
 
     fn run(&self, canvas_data: &CanvasData, canvas: &RenderTexture2D) {
-        println!("clicked");
+        let files = FileDialog::new()
+            .add_filter("png", &["png"])
+            .set_file_name("Piksel.png")
+            .set_directory(module_path!())
+            .save_file()
+            .unwrap();
+
+        canvas.get_texture_data().unwrap().export_image(files.to_str().unwrap());
     }
 
     fn get_text(&self) -> String {
