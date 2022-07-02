@@ -1,6 +1,10 @@
 mod picker;
+mod ui;
+mod export;
 
 use raylib::prelude::*;
+use crate::export::ExportButton;
+use crate::ui::Button;
 
 fn main() {
     let (mut rl, mut thread) = raylib::init()
@@ -32,7 +36,15 @@ fn main() {
     let mut picker_texture: RenderTexture2D = rl.load_render_texture(&thread, picker_size as u32, picker_size as u32).expect("error");
     let mut range_texture: RenderTexture2D = rl.load_render_texture(&thread, 25, picker_size as u32).expect("");
 
+    picker::set_picker_texture(canvas_data.selected_color_range, picker_size, &mut picker_texture);
+    picker::set_range_texture(picker_size, &mut range_texture);
+
     let mut mouse_last_position: Vector2 = Vector2::zero();
+
+    let mut buttons: Vec<Box<dyn Button>> = vec!(Box::new(ExportButton{
+        start_x: picker_start_x,
+        start_y: picker_size + picker_start_y * 2
+    }));
 
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&thread);
@@ -44,17 +56,27 @@ fn main() {
         let width = d.get_screen_width();
 
         //draw stuff
-        let mut x_end = canvas_data.start_x + (canvas_data.size.x * canvas_data.scale);
-        let mut y_end = canvas_data.start_y + (canvas_data.size.y * canvas_data.scale);
+        let mut end_x = canvas_data.start_x + (canvas_data.size.x * canvas_data.scale);
+        let mut end_y = canvas_data.start_y + (canvas_data.size.y * canvas_data.scale);
 
-        if x_end > width as f32 { x_end = width as f32; }
-        if y_end > height as f32 { y_end = height as f32; }
+        if end_x > width as f32 { end_x = width as f32; }
+        if end_y > height as f32 { end_y = height as f32; }
 
+        //canvas draw
         d.draw_texture_ex(&canvas, Vector2::new(canvas_data.start_x, canvas_data.start_y), 0., canvas_data.scale, Color::WHITE);
+        //side panel draw
         d.draw_rectangle(0, 0, picker_start_x * 3 + 25 + picker_size, height, Color::GRAY);
+        //picker draw
         d.draw_texture(&picker_texture, picker_start_x, picker_start_y, Color::WHITE);
         d.draw_texture(&range_texture, picker_start_x * 2 + picker_size, picker_start_y, Color::WHITE);
         picker::draw_picker(&mut d, picker_size, picker_start_x, picker_start_y, picker_selected_position, range_selected_position, canvas_data.selected_color);
+
+        //buttons
+        // let button_start_y = picker_size + picker_start_y * 2;
+        // let button_start_x = picker_start_x;
+        for button in buttons.iter() {
+            draw_button(&mut d, &button, button.get_start().0, button.get_start().1);
+        }
 
         //zoom
         if d.get_mouse_wheel_move() != 0. {
@@ -76,11 +98,6 @@ fn main() {
         }
 
         //color picker
-        if !started {
-            picker::set_picker_texture(canvas_data.selected_color_range, picker_size, &mut picker_texture);
-            picker::set_range_texture(picker_size, &mut range_texture);
-        }
-
         let prev_range = range_selected_position;
         if d.is_mouse_button_down(MouseButton::MOUSE_LEFT_BUTTON) {
             //picker and range
@@ -94,6 +111,17 @@ fn main() {
             }
         }
 
+        if d.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
+            //buttons
+            for button in buttons.iter() {
+                let start = button.get_start();
+                let size = button.get_size();
+                if mouse_bounds(mouse_position, start.0, start.1, start.0 + size.0, start.1 + size.1) {
+                    button.run(&canvas_data, &canvas);
+                }
+            }
+        }
+
         //draw on canvas
         let mut texture_stream = d.begin_texture_mode(&thread, &mut canvas);
 
@@ -102,9 +130,8 @@ fn main() {
             started = true;
         }
 
-        //draw
         if texture_stream.is_mouse_button_down(MouseButton::MOUSE_LEFT_BUTTON) {
-            if mouse_position.x < x_end && mouse_position.x > canvas_data.start_x && mouse_position.y > canvas_data.start_y && mouse_position.y < y_end {
+            if mouse_bounds(mouse_position, canvas_data.start_x as i32, canvas_data.start_y as i32, end_x as i32, end_y as i32) {
                 let pixel_pos_x = ((mouse_position.x - canvas_data.start_x) / canvas_data.scale).floor();
                 let pixel_pos_y = ((mouse_position.y - canvas_data.start_y) / canvas_data.scale).floor();
                 texture_stream.draw_pixel(pixel_pos_x as i32,  canvas_data.size.y as i32 - pixel_pos_y as i32 - 1, canvas_data.selected_color);
@@ -115,7 +142,22 @@ fn main() {
     }
 }
 
-struct CanvasData {
+fn draw_button(d: &mut RaylibDrawHandle, button: &Box<dyn Button>, start_x: i32, start_y: i32) {
+    let size = button.get_size();
+    d.draw_rectangle(start_x, start_y, size.0, size.1, Color::DARKGRAY);
+
+    let text = button.get_text();
+    let font_size = size.1 - 10;
+    let length = measure_text(&*text, font_size);
+    d.draw_text(&*text, start_x + (size.0 - length) / 2, start_y + 5, font_size, Color::WHITE);
+}
+
+fn mouse_bounds(mouse_position: Vector2, start_x: i32, start_y: i32, end_x: i32, end_y: i32) -> bool {
+    mouse_position.x < end_x as f32 && mouse_position.x > start_x as f32 && mouse_position.y > start_y as f32 && mouse_position.y < end_y as f32
+}
+
+#[derive(Clone, Copy)]
+pub struct CanvasData {
     scale: f32,
     size: Vector2,
     start_x: f32,
