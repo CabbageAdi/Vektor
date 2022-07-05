@@ -17,7 +17,7 @@ impl Button for ExportButton {
         (self.start_x, self.start_y)
     }
 
-    fn run(&self, canvas_data: &CanvasData, canvas: &RenderTexture2D) {
+    fn run(&self, d: &mut RaylibDrawHandle, canvas_data: &mut CanvasData, canvas: &mut RenderTexture2D) {
         let files = FileDialog::new()
             .add_filter("png", &["png"])
             .set_file_name("Piksel.png")

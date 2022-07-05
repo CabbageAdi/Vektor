@@ -1,12 +1,15 @@
 mod picker;
 mod ui;
 mod export;
+mod new;
 
+use std::any::Any;
 use raylib::prelude::*;
 use crate::export::ExportButton;
+use crate::new::NewButton;
 use crate::ui::Button;
 
-fn main() {
+pub fn main() {
     let (mut rl, mut thread) = raylib::init()
         .size(1280, 720)
         .title("Piksel | By Cabbage")
@@ -41,12 +44,24 @@ fn main() {
 
     let mut mouse_last_position: Vector2 = Vector2::zero();
 
-    let mut buttons: Vec<Box<dyn Button>> = vec!(Box::new(ExportButton{
-        start_x: picker_start_x,
-        start_y: picker_size + picker_start_y * 2
-    }));
+    let mut buttons: Vec<Box<dyn Button>> = vec!(
+        Box::new(ExportButton{
+            start_x: picker_start_x,
+            start_y: picker_size + picker_start_y * 2
+        }),
+        Box::new(NewButton {
+            start_x: picker_start_x * 2 + 60,
+            start_y: picker_size + picker_start_y * 2
+        })
+    );
 
     while !rl.window_should_close() {
+        if !started {
+            canvas = rl.load_render_texture(&thread, canvas_data.size.x as u32, canvas_data.size.y as u32).expect("error initializing canvas");
+            canvas.update_texture(&*new::set_white(canvas_data.size.x as i32, canvas_data.size.y as i32));
+            started = true;
+        }
+
         let mut d = rl.begin_drawing(&thread);
 
         d.clear_background(Color::DARKGRAY);
@@ -117,18 +132,17 @@ fn main() {
                 let start = button.get_start();
                 let size = button.get_size();
                 if mouse_bounds(mouse_position, start.0, start.1, start.0 + size.0, start.1 + size.1) {
-                    button.run(&canvas_data, &canvas);
+                    button.run(&mut d, &mut canvas_data, &mut canvas);
+
+                    if button.type_id() == buttons[1].type_id() {
+                        started = false;
+                    }
                 }
             }
         }
 
         //draw on canvas
         let mut texture_stream = d.begin_texture_mode(&thread, &mut canvas);
-
-        if !started {
-            texture_stream.clear_background(Color::WHITE);
-            started = true;
-        }
 
         if texture_stream.is_mouse_button_down(MouseButton::MOUSE_LEFT_BUTTON) {
             if mouse_bounds(mouse_position, canvas_data.start_x as i32, canvas_data.start_y as i32, end_x as i32, end_y as i32) {

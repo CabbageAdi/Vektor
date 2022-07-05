@@ -1,4 +1,4 @@
-use raylib::prelude::RenderTexture2D;
+use raylib::prelude::*;
 use crate::CanvasData;
 
 pub trait Button {
@@ -6,6 +6,6 @@ pub trait Button {
     fn get_size(&self) -> (i32, i32);
     //temporary hopefully
     fn get_start(&self) -> (i32, i32);
-    fn run(&self, canvas_data: &CanvasData, canvas: &RenderTexture2D);
+    fn run(&self, d: &mut RaylibDrawHandle, canvas_data: &mut CanvasData, canvas: &mut RenderTexture2D);
     fn get_text(&self) -> String;
 }
