@@ -1,13 +1,14 @@
+extern crate core;
+
 mod picker;
 mod ui;
 mod export;
 mod new;
 
-use std::any::Any;
 use raylib::prelude::*;
-use crate::export::ExportButton;
-use crate::new::NewButton;
-use crate::ui::Button;
+use crate::export::*;
+use crate::new::*;
+use crate::ui::*;
 
 pub fn main() {
     let (mut rl, mut thread) = raylib::init()
@@ -23,7 +24,8 @@ pub fn main() {
         start_y: 100.,
         scale_sensitivity: 0.4,
         selected_color_range: Color::RED,
-        selected_color: Color::RED
+        selected_color: Color::RED,
+        started: false
     };
 
     //color picker
@@ -33,7 +35,22 @@ pub fn main() {
     let mut picker_selected_position: Vector2 = Vector2::new(0., 0.);
     let mut range_selected_position: f32 = 0.;
 
-    let mut started = false;
+    let mut ui = UI {
+        //todo: remove dependance on picker variables
+        buttons: vec!(
+            Box::new(ExportButton{
+                start_x: picker_start_x,
+                start_y: picker_size + picker_start_y * 2
+            }),
+            Box::new(NewButton {
+                start_x: picker_start_x * 2 + 60,
+                start_y: picker_size + picker_start_y * 2
+            })
+        ),
+        panels: vec!()
+    };
+
+    let mut buttons: Vec<Box<dyn Button>> = vec!(Box::new(ExportRun{}), Box::new(NewRun{}));
 
     let mut canvas: RenderTexture2D = rl.load_render_texture(&thread, canvas_data.size.x as u32, canvas_data.size.y as u32).expect("error initializing canvas");
     let mut picker_texture: RenderTexture2D = rl.load_render_texture(&thread, picker_size as u32, picker_size as u32).expect("error");
@@ -44,22 +61,11 @@ pub fn main() {
 
     let mut mouse_last_position: Vector2 = Vector2::zero();
 
-    let mut buttons: Vec<Box<dyn Button>> = vec!(
-        Box::new(ExportButton{
-            start_x: picker_start_x,
-            start_y: picker_size + picker_start_y * 2
-        }),
-        Box::new(NewButton {
-            start_x: picker_start_x * 2 + 60,
-            start_y: picker_size + picker_start_y * 2
-        })
-    );
-
     while !rl.window_should_close() {
-        if !started {
+        if !canvas_data.started {
             canvas = rl.load_render_texture(&thread, canvas_data.size.x as u32, canvas_data.size.y as u32).expect("error initializing canvas");
             canvas.update_texture(&*new::set_white(canvas_data.size.x as i32, canvas_data.size.y as i32));
-            started = true;
+            canvas_data.started = true;
         }
 
         let mut d = rl.begin_drawing(&thread);
@@ -89,8 +95,11 @@ pub fn main() {
         //buttons
         // let button_start_y = picker_size + picker_start_y * 2;
         // let button_start_x = picker_start_x;
-        for button in buttons.iter() {
-            draw_button(&mut d, &button, button.get_start().0, button.get_start().1);
+        for button in ui.buttons.iter_mut() {
+            if button.enabled() {
+                let start = button.get_start();
+                draw_button(&mut d, button, start.0, start.1);
+            }
         }
 
         //zoom
@@ -127,17 +136,15 @@ pub fn main() {
         }
 
         if d.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
-            //buttons
-            for button in buttons.iter() {
-                let start = button.get_start();
-                let size = button.get_size();
+            let mut i = 0;
+            while i < buttons.len() {
+                let button_state = &mut ui.buttons[i];
+                let start = &button_state.get_start();
+                let size = &button_state.get_size();
                 if mouse_bounds(mouse_position, start.0, start.1, start.0 + size.0, start.1 + size.1) {
-                    button.run(&mut d, &mut canvas_data, &mut canvas);
-
-                    if button.type_id() == buttons[1].type_id() {
-                        started = false;
-                    }
-                }
+                    buttons[i].run(&mut d, &mut canvas_data, &mut canvas, &mut ui);
+                };
+                i += 1;
             }
         }
 
@@ -156,7 +163,7 @@ pub fn main() {
     }
 }
 
-fn draw_button(d: &mut RaylibDrawHandle, button: &Box<dyn Button>, start_x: i32, start_y: i32) {
+fn draw_button(d: &mut RaylibDrawHandle, button: &mut Box<dyn ButtonState>, start_x: i32, start_y: i32) {
     let size = button.get_size();
     d.draw_rectangle(start_x, start_y, size.0, size.1, Color::DARKGRAY);
 
@@ -178,5 +185,6 @@ pub struct CanvasData {
     start_y: f32,
     scale_sensitivity: f32,
     selected_color_range: Color,
-    selected_color: Color
+    selected_color: Color,
+    started: bool
 }
