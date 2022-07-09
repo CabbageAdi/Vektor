@@ -13,6 +13,8 @@ pub trait ButtonState {
     fn get_text(&mut self) -> String;
     fn enabled(&mut self) -> bool;
     fn set_enabled(&mut self, enable: bool);
+
+    fn get_behavior(&self) -> Box<dyn Button>;
 }
 
 pub trait Panel {
@@ -26,5 +28,12 @@ pub trait Panel {
 
 pub struct UI {
     pub buttons: Vec<Box<dyn ButtonState>>,
-    pub panels: Vec<Box<dyn Panel>>
+    pub panels: Vec<Box<dyn Panel>>,
+    pub margin_distance: i32
+}
+
+impl UI {
+    pub fn add_button(&mut self, button: impl ButtonState + 'static) {
+        self.buttons.push(Box::new(button));
+    }
 }

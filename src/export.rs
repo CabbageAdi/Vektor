@@ -32,6 +32,10 @@ impl ButtonState for ExportButton {
             panic!("cannot disable export button");
         }
     }
+
+    fn get_behavior(&self) -> Box<dyn Button> {
+        Box::new(ExportRun {})
+    }
 }
 
 impl Button for ExportRun {

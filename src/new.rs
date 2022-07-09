@@ -30,11 +30,16 @@ impl ButtonState for NewButton {
             panic!("cannot disable new button");
         }
     }
+
+    fn get_behavior(&self) -> Box<dyn Button> {
+        Box::new(NewRun {})
+    }
 }
 
 impl Button for NewRun {
     fn run(&self, d: &mut RaylibDrawHandle, canvas_data: &mut CanvasData, mut canvas: &mut RenderTexture2D, ui: &mut UI) {
-        canvas_data.size = Vector2::new(5., 5.);
+        canvas_data.size_x = 5;
+        canvas_data.size_y = 5;
         canvas_data.started = false;
     }
 }
